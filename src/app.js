@@ -713,7 +713,11 @@ export class QswApp {
     if (gone()) return;
     let sw;
     try {
-      sw = await client.read({ timeLeft: () => mono + TIMEOUTS.READING_MS - this.monotonic() });
+      sw = await client.read({
+        timeLeft: () => mono + TIMEOUTS.READING_MS - this.monotonic(),
+        clock: () => this.monotonic(),
+        maxSkip: Math.max(0, Math.floor(INTERVALS.SECONDARY_MAX_MS / this.config.pollMs) - 1),
+      });
     } catch (err) {
       if (gone()) return;
       await this.failed(err);
@@ -828,11 +832,13 @@ export class QswApp {
     return sw?.mac ? hmac(this.memory.salt, `mac|${sw.mac}`) : null;
   }
 
-  /** The rates since the previous statistics (kbit/s), on the monotonic clock. */
-  ratesOf(sw, mono) {
+  /** The rates since the previous statistics (kbit/s), on the monotonic clock of their answers. */
+  ratesOf(sw) {
     const prev = this.counters;
     const stats = sw.statistics;
-    if (!stats) return null;
+    // Dated at the answer of the statistics route (monotonic), never at the end of the reading.
+    const mono = sw.statisticsAt;
+    if (!stats || typeof mono !== 'number') return null;
     this.counters = { mono, ports: stats };
     if (!prev || mono - prev.mono < 1000) return null;
     const seconds = (mono - prev.mono) / 1000;
@@ -898,7 +904,7 @@ export class QswApp {
     if (gone()) return;
     this.followReboot(sw);
     const mono = this.monotonic();
-    this.sw = { ...sw, rates: this.ratesOf(sw, mono) };
+    this.sw = { ...sw, rates: this.ratesOf(sw) };
     this.online = true;
     this.lastOkAt = mono;
     const discoveredKey = JSON.stringify([sw.product, sw.model, sw.portCount]);

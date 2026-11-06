@@ -86,8 +86,8 @@
   {
     "name": "secondary route: a failure fails the reading",
     "file": "src/qsw/client.js",
-    "from": "        missing.push(name);\n        return null;",
-    "to": "        throw err;"
+    "from": "          this.spacing.set(name, { fails, skip: Math.min(2 ** (fails - 1) - 1, maxSkip) });\n        }\n        missing.push(name);\n        return null;",
+    "to": "          this.spacing.set(name, { fails, skip: Math.min(2 ** (fails - 1) - 1, maxSkip) });\n        }\n        throw err;"
   },
   {
     "name": "/data: a pending read doubled",
@@ -196,5 +196,101 @@
     "file": "src/qsw/parse.js",
     "from": "    if (n === null || n > portCount || out.has(n)) continue;",
     "to": "    if (n === null || out.has(n)) continue;"
+  },
+  {
+    "name": "typed fingerprint not compared to the certificate met",
+    "file": "src/app.js",
+    "from": "      if (fingerprint !== typed) {",
+    "to": "      if (false) {"
+  },
+  {
+    "name": "reboot during a pause",
+    "file": "src/app.js",
+    "from": "    if (pause > 0) throw userError(T.errors.paused(pause));",
+    "to": ""
+  },
+  {
+    "name": "button value not checked",
+    "file": "src/app.js",
+    "from": "    if (value !== PRESSED && value !== String(PRESSED)) throw userError(T.errors.badValue);",
+    "to": ""
+  },
+  {
+    "name": "any 4xx of the login taken as a refusal",
+    "file": "src/qsw/client.js",
+    "from": "    if (refused(res.status)) {\n      throw new SwitchError(CODES.CREDENTIALS",
+    "to": "    if (res.status >= 400 && res.status < 500) {\n      throw new SwitchError(CODES.CREDENTIALS"
+  },
+  {
+    "name": "retry delay not doubled",
+    "file": "src/app.js",
+    "from": "      this.nextTryAt = mono + delay;\n      this.retryDelay = Math.min(this.retryDelay * 2, INTERVALS.RETRY_MAX_MS);",
+    "to": "      this.nextTryAt = mono + delay;"
+  },
+  {
+    "name": "a success keeps the refusal in /data",
+    "file": "src/app.js",
+    "from": "    if (m.refused) {\n      m.refused = null;\n      dirty = true;\n    }\n    if (this.final?.code === CODES.CREDENTIALS) {",
+    "to": "    if (this.final?.code === CODES.CREDENTIALS) {"
+  },
+  {
+    "name": "budget: no cut",
+    "file": "src/publisher.js",
+    "from": "    if (list.length > remaining) {",
+    "to": "    if (false) {"
+  },
+  {
+    "name": "budget: no rotation",
+    "file": "src/publisher.js",
+    "from": "      this.cursor = start + remaining;",
+    "to": ""
+  },
+  {
+    "name": "budget: the round counted, not what was sent",
+    "file": "src/publisher.js",
+    "from": "this.budget.record(result?.count ?? list.length);",
+    "to": "this.budget.record(list.length);"
+  },
+  {
+    "name": "budget: the window never slides",
+    "file": "src/publisher.js",
+    "from": "this.entries[0][0] <= since",
+    "to": "this.entries[0][0] <= since - 1e12"
+  },
+  {
+    "name": "secondary route refused: a new session opened",
+    "file": "src/qsw/client.js",
+    "from": "      if (refused(res.status) && secondary) {",
+    "to": "      if (false) {"
+  },
+  {
+    "name": "secondary route refused: never spaced",
+    "file": "src/qsw/client.js",
+    "from": "      if (spacing && spacing.skip > 0) {",
+    "to": "      if (false) {"
+  },
+  {
+    "name": "secondary route refused: spacing never capped",
+    "file": "src/qsw/client.js",
+    "from": "skip: Math.min(2 ** (fails - 1) - 1, maxSkip)",
+    "to": "skip: 2 ** (fails - 1) - 1"
+  },
+  {
+    "name": "secondary route: an answer does not reset the spacing",
+    "file": "src/qsw/client.js",
+    "from": "        this.spacing.delete(name);",
+    "to": ""
+  },
+  {
+    "name": "rates dated at the end of the reading",
+    "file": "src/qsw/client.js",
+    "from": "      statisticsAt = clock();\n",
+    "to": ""
+  },
+  {
+    "name": "rates dated by the app at the end of the reading",
+    "file": "src/app.js",
+    "from": "    const mono = sw.statisticsAt;",
+    "to": "    const mono = this.monotonic();"
   }
 ]

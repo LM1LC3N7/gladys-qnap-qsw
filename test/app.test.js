@@ -196,14 +196,95 @@ test('a secondary route failing (sensor 500, statistics 401, firmware cut) never
   );
   assert.equal(state(gladys, 'port_1_link'), 1);
   assert.equal(state(gladys, FEATURES.TEMPERATURE), undefined);
-  // The 401 of a secondary route opened a new session once, never a refusal.
-  assert.equal(sentTo(sw, PATHS.LOGIN).length, 2);
+  // The 401 of a secondary route opens no session and is never a refusal.
+  assert.equal(sentTo(sw, PATHS.LOGIN).length, 1);
   await wait(MINUTE);
   assert.equal(sentTo(sw, PATHS.BOARD).length, 2, 'no pause, no retry delay');
   sw.overrides.clear();
   await wait(MINUTE);
   assert.equal(state(gladys, FEATURES.TEMPERATURE), 31);
+  // The uptime refused the session twice: skipped one reading, then asked again.
+  await wait(MINUTE);
   assert.doesNotMatch(status(gladys).message.en, /Not read/);
+});
+
+test('a secondary route refusing the session: no new session, the token kept, asked at readings 1, 2, 4, 8', async () => {
+  const sw = createFakeSwitch();
+  sw.override(PATHS.SENSOR, { status: 403 });
+  const store = memoryStore();
+  const { gladys, wait } = await setup({ sw, store });
+  const asked = [];
+  for (let reading = 1; reading <= 9; reading += 1) {
+    if (reading > 1) await wait(MINUTE);
+    asked.push(sentTo(sw, PATHS.SENSOR).length);
+  }
+  assert.equal(sentTo(sw, PATHS.BOARD).length, 9);
+  assert.equal(sentTo(sw, PATHS.LOGIN).length, 1, 'one session for every reading');
+  assert.deepEqual(asked, [1, 2, 2, 3, 3, 3, 3, 4, 4], 'asked at readings 1, 2, 4 and 8');
+  const tokens = new Set(
+    sw.sent.filter((r) => r.path !== PATHS.LOGIN).map((r) => r.headers.cookie),
+  );
+  assert.equal(tokens.size, 1, 'the token never dropped');
+  assert.equal(status(gladys).connected, true);
+  assert.equal(store.data.refused, null);
+  // An answer resets the spacing: asked at every reading again.
+  sw.overrides.clear();
+  await wait(8 * MINUTE);
+  const n = sentTo(sw, PATHS.SENSOR).length;
+  await wait(MINUTE);
+  assert.equal(sentTo(sw, PATHS.SENSOR).length, n + 1);
+  await wait(MINUTE);
+  assert.equal(sentTo(sw, PATHS.SENSOR).length, n + 2);
+  // Refused again later: counted from the start, asked again at the next reading.
+  sw.override(PATHS.SENSOR, { status: 403 });
+  await wait(MINUTE);
+  await wait(MINUTE);
+  assert.equal(sentTo(sw, PATHS.SENSOR).length, n + 4);
+});
+
+test('a secondary route refusing the session: asked again at most an hour apart', async () => {
+  const sw = createFakeSwitch();
+  sw.override(PATHS.FIRMWARE, { status: 401 });
+  const { wait } = await setup({ sw, config: { poll_interval: '300' } });
+  const asked = [];
+  for (let reading = 1; reading <= 61; reading += 1) {
+    if (reading > 1) await wait(5 * MINUTE);
+    if (sentTo(sw, PATHS.FIRMWARE).length > asked.length) asked.push(reading);
+  }
+  // Readings 5 min apart: 1, 2, 4, 8, then every 12 readings (1 h) at most.
+  assert.deepEqual(asked.slice(0, 4), [1, 2, 4, 8]);
+  for (let i = 1; i < asked.length; i += 1) assert.ok(asked[i] - asked[i - 1] <= 12, `${asked}`);
+  assert.ok(asked.length <= 10, `${asked}`);
+});
+
+test('rates are dated at the answer of the statistics, not at the end of a reading of varying length', async () => {
+  const sw = createFakeSwitch();
+  const ctx = await setup({ sw, connect: false });
+  const { clock } = ctx;
+  // Port 1 receives exactly 1000 kbit/s (125 000 bytes/s).
+  sw.override(PATHS.PORTS_STATISTICS, () => ({
+    status: 200,
+    body: {
+      result: Array.from({ length: 12 }, (_, i) => ({
+        key: String(i + 1),
+        val: { RxOctets: i === 0 ? Math.round((clock.now - T0) * 125) : 0, TxOctets: 0 },
+      })),
+    },
+  }));
+  let slow = true;
+  sw.hook = (entry) => {
+    if (entry.path !== PATHS.SENSOR) return undefined;
+    slow = !slow;
+    return slow ? ctx.advance(5 * SECOND) : undefined;
+  };
+  await ctx.gladys.connect();
+  await ctx.wait(0);
+  const rates = [];
+  for (let i = 0; i < 6; i += 1) {
+    await ctx.wait(MINUTE);
+    rates.push(state(ctx.gladys, 'port_1_rx'));
+  }
+  for (const rate of rates) assert.ok(Math.abs(rate - 1000) <= 20, `rates ${rates}`);
 });
 
 test('a secondary route hanging: the reading ends within its budget, the main values published', async () => {
@@ -267,9 +348,11 @@ test('credentials refused by the login route: kept, never retried by the loop no
   assertNoSecret({ ...again, store });
 });
 
-test('credentials refused: the test button tries once more', async () => {
+test('credentials refused: the test button tries once more; its success clears the refusal in /data', async () => {
   const sw = createFakeSwitch({ password: 'other' });
-  const ctx = await setup({ sw });
+  const store = memoryStore();
+  const ctx = await setup({ sw, store });
+  assert.ok(store.data.refused);
   assert.equal(sentTo(sw, PATHS.LOGIN).length, 1);
   await ctx.wait(MINUTE);
   sw.password = PASSWORD;
@@ -277,6 +360,11 @@ test('credentials refused: the test button tries once more', async () => {
   assert.equal(ack.success, true, JSON.stringify(ack));
   assert.equal(sentTo(sw, PATHS.LOGIN).length, 2);
   assert.equal(status(ctx.gladys).connected, true);
+  assert.equal(store.data.refused, null);
+  // A restart reads at once when due: nothing refused is kept.
+  await ctx.app.stop();
+  const again = await setup({ sw, store, now: T0 + 3 * MINUTE });
+  assert.equal(status(again.gladys).connected, true);
 });
 
 test('a 401/403 elsewhere than the login route is never a refusal of the credentials', async () => {
@@ -683,4 +771,76 @@ test('Discovery: the scan publishes what is known, never a reading', async () =>
   await settle();
   assert.equal(sw.sent.length, before);
   assert.equal(gladys.fake.discoveredDevices.at(-1).external_id, deviceId());
+});
+
+test('a typed fingerprint that is not the certificate met: not a byte sent, the one met shown', async () => {
+  const sw = createFakeSwitch();
+  const store = memoryStore();
+  const ctx = await setup({ sw, store, config: { certificate_fingerprint: OTHER_FINGERPRINT } });
+  await ctx.wait(10 * MINUTE);
+  assert.equal(sw.sent.length, 0, 'no login, no request after the handshake');
+  assert.ok(sw.connections >= 1);
+  assert.match(
+    status(ctx.gladys).message.en,
+    new RegExp(`not the fingerprint you typed.*${FINGERPRINT}`),
+  );
+  assert.deepEqual(store.data.pins, {});
+});
+
+test('reboot during a pause asked by the switch (429/5xx): refused, no request', async () => {
+  const sw = createFakeSwitch();
+  const ctx = await setup({ sw, config: { allow_reboot: true } });
+  sw.override(PATHS.BOARD, { status: 503 }, 1);
+  await ctx.wait(MINUTE);
+  assert.match(status(ctx.gladys).message.en, /asked to wait/);
+  const sent = sw.sent.length;
+  const ack = await press(ctx.gladys);
+  assert.equal(ack.success, false);
+  assert.match(ack.error, /asked to wait/);
+  assert.equal(sw.sent.length, sent);
+  assert.equal(sw.reboots, 0);
+});
+
+test('reboot allowed: only the value 1 of the button acts', async () => {
+  const sw = createFakeSwitch();
+  const ctx = await setup({ sw, config: { allow_reboot: true } });
+  const sent = sw.sent.length;
+  for (const value of [0, 2, 'x', true, '', null]) {
+    const ack = await press(ctx.gladys, value);
+    assert.equal(ack.success, false, String(value));
+    assert.match(ack.error, /only takes the value 1/);
+  }
+  assert.equal(sw.sent.length, sent);
+  assert.equal(sw.reboots, 0);
+  const ok = await press(ctx.gladys, '1');
+  assert.equal(ok.success, true, JSON.stringify(ok));
+});
+
+test('the login answering 400, 404, 405 or 429 is never a refusal of the credentials', async () => {
+  for (const code of [400, 404, 405, 429]) {
+    const sw = createFakeSwitch();
+    sw.override(PATHS.LOGIN, { status: code }, 1);
+    const store = memoryStore();
+    const ctx = await setup({ sw, store });
+    assert.equal(store.data.refused, null, String(code));
+    assert.doesNotMatch(status(ctx.gladys).message.en, /refused the user name/, String(code));
+    await ctx.wait(MINUTE);
+    assert.equal(status(ctx.gladys).connected, true, String(code));
+  }
+});
+
+test('no answer: retried 1, 2, 4 min later (doubling), never a storm', async () => {
+  const sw = createFakeSwitch();
+  const ctx = await setup({ sw, config: { poll_interval: '30' } });
+  sw.state = 'down';
+  const tries = () => sw.connections;
+  const start = tries();
+  const at = [];
+  for (let s = 1; s <= 10 * 60; s += 1) {
+    const before = tries();
+    await ctx.wait(SECOND);
+    if (tries() > before) at.push(s);
+  }
+  assert.ok(tries() - start <= 5, `${tries() - start} tries in 10 min: ${at}`);
+  assert.deepEqual(at.slice(0, 3), [30, 90, 210], `${at}`);
 });

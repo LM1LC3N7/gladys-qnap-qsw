@@ -56,7 +56,8 @@ test/                    node --test, fake Gladys (SDK) + fake switch + loopback
 - **Credentials**: only the login route refuses them (401/403 there); a
   401/403 elsewhere, an unreadable or cut answer, never.
 - **Secondary routes** (statistics, sensor, time, firmware) never block nor
-  pause a reading; a final failure (certificate, login) is never swallowed.
+  pause a reading, and a 401/403 there never opens a session (the route is
+  spaced); a final failure (certificate, login) is never swallowed.
 - **/data**: every read and write bounded in time; a FIFO never waited for;
   unreadable is not empty (no pin, no identity learned, no reboot), read
   again every 10 s, one read at a time, what memory decided meanwhile merged.

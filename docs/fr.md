@@ -106,15 +106,19 @@ peut-être. Pendant 5 minutes, une lecture qui échoue dit qu'il redémarre.
   seulement) : plus rien n'est envoyé tant que le nom d'utilisateur ou le mot
   de passe n'est pas réenregistré dans le formulaire (le mot de passe
   enregistré est alors essayé une fois, même identique) ; le bouton
-  **Tester la connexion** essaie une fois de plus. Gladys garde une marque de
+  **Tester la connexion** essaie une fois de plus, quand une lecture est due
+  (jamais avant le rafraîchissement suivant la dernière tentative). Gladys garde une marque de
   8 bits du mot de passe refusé (partagée par 1 mot de passe sur 256, jamais
   le mot de passe) pour qu'un redémarrage ne le réessaie pas.
-- **HTTP 429 ou 5xx** sur la carte ou l'état des ports : une pause de toute
-  requête (1 min à 6 h), gardée entre les redémarrages. Les autres routes
+- **HTTP 429 ou 5xx** sur la connexion, la carte ou l'état des ports : une
+  pause de toute requête (1 min à 6 h), gardée entre les redémarrages. Les autres routes
   (débits, capteurs, temps de fonctionnement, firmware) ne mettent jamais en
   pause ni n'arrêtent la lecture (hors certificat ou connexion refusés, qui
   arrêtent tout où qu'ils soient rencontrés) : ce qu'elles n'ont pas donné
-  cette fois est dit dans le statut.
+  cette fois est dit dans le statut. L'une d'elles qui refuse la session
+  (HTTP 401/403, un compte sans le droit d'y accéder) n'ouvre pas de nouvelle
+  session : elle est redemandée 1, 2, 4… lectures plus tard, au plus une heure
+  après.
 - **Pas de réponse** : nouvel essai après 1 minute ou l'intervalle de
   rafraîchissement s'il est plus long, puis deux fois plus long à chaque fois,
   jusqu'à 30 minutes.

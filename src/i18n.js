@@ -134,8 +134,8 @@ export const T = {
       },
       SAVE_TO_RETRY,
       {
-        en: 'The "Test the connection" button tries once more.',
-        fr: 'Le bouton « Tester la connexion » essaie une fois de plus.',
+        en: 'The "Test the connection" button tries once more when a reading is due.',
+        fr: 'Le bouton « Tester la connexion » essaie une fois de plus quand une lecture est due.',
       },
     ),
     certificateChanged: (fingerprint) => ({

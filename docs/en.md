@@ -102,14 +102,18 @@ For 5 minutes, a reading that fails says the switch is rebooting.
 - **Credentials refused** (by the login page of the switch only): nothing is
   sent again until the user name or the password is saved again in the form
   (the password saved is then tried once, even the same one); the **Test the
-  connection** button tries once more. Gladys keeps an 8-bit marker of the
+  connection** button tries once more, when a reading is due (never sooner
+  than the refresh after the last attempt). Gladys keeps an 8-bit marker of the
   refused password (shared by 1 password in 256, never the password) so that
   a restart does not try it again.
-- **HTTP 429 or 5xx** on the board or the port status: a pause of every
-  request (1 min to 6 h), kept across restarts. The other routes (rates,
+- **HTTP 429 or 5xx** on the login, the board or the port status: a pause of
+  every request (1 min to 6 h), kept across restarts. The other routes (rates,
   sensors, uptime, firmware) never pause nor stop the reading (a refused
   certificate or login aside, which stops everything wherever it is met):
-  what they did not give this time is said in the status.
+  what they did not give this time is said in the status. One of them
+  refusing the session (HTTP 401/403, an account without the right to it)
+  opens no new session: it is asked again 1, 2, 4... readings later, at most
+  an hour apart.
 - **No answer**: tried again after 1 minute or the refresh interval if
   longer, then twice as long each time, up to 30 minutes.
 - **Another switch** at the address (another MAC): nothing is published nor

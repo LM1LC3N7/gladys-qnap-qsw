@@ -87,6 +87,8 @@ export class QswClient {
     this.request = request;
     /** The token of the open session, or null. */
     this.token = null;
+    /** Secondary routes refusing the session: name -> { fails, skip }. */
+    this.spacing = new Map();
   }
 
   close() {
@@ -154,15 +156,24 @@ export class QswClient {
 
   /**
    * GET a route of the API, its JSON. Opens a session when none is open; a
-   * session refused is opened again once per reading (`ctx.fresh`).
+   * session refused by a needed route is opened again once per reading
+   * (`ctx.fresh`). A secondary route refusing it (401/403) once the needed
+   * routes accepted it in this reading opens no session and keeps the token:
+   * that route is "not read" (an account without the right to it, a
+   * firmware that closes it), never a refusal of the credentials.
    */
-  async get(path, ctx, timeLeft) {
+  async get(path, ctx, timeLeft, { secondary = false } = {}) {
     if (!this.token) {
       await this.login(timeLeft);
       ctx.fresh = true;
     }
     for (;;) {
       const res = await this.send('GET', path, { headers: this.authHeaders(), timeLeft });
+      if (refused(res.status) && secondary) {
+        throw new SwitchError(CODES.ACCESS, `Route refused (HTTP ${res.status})`, {
+          status: res.status,
+        });
+      }
       if (refused(res.status) && !ctx.fresh) {
         // The session expired (or the switch restarted): a new one, once.
         await this.login(timeLeft);
@@ -184,10 +195,14 @@ export class QswClient {
    * One reading. The board and the port status are needed (their failure
    * fails the reading); the statistics, the sensors, the uptime and the
    * firmware are read when they answer, never blocking (`missing` lists the
-   * ones that did not). A failure that stops everything (certificate, login
-   * refused) is never swallowed. `timeLeft()` -> ms left for the whole reading.
+   * ones that did not). A secondary route that refuses the session is asked
+   * again 1, 2, 4... readings later (`maxSkip` readings skipped at most), an
+   * answer resetting it. A failure that stops everything (certificate, login
+   * refused) is never swallowed. `timeLeft()` -> ms left for the whole
+   * reading; `clock()` -> the monotonic instant at which the byte counters
+   * are taken (`statisticsAt`, the answer of the statistics).
    */
-  async read({ timeLeft }) {
+  async read({ timeLeft, clock = () => performance.now(), maxSkip = Infinity }) {
     const ctx = { fresh: false };
     const board = parseBoard(await this.get(PATHS.BOARD, ctx, timeLeft));
     const status = parsePortsStatus(
@@ -196,17 +211,33 @@ export class QswClient {
     );
     const missing = [];
     const secondary = async (name, path, parse) => {
+      const spacing = this.spacing.get(name);
+      if (spacing && spacing.skip > 0) {
+        spacing.skip -= 1;
+        missing.push(name);
+        return null;
+      }
       try {
-        return parse(await this.get(path, ctx, timeLeft));
+        const answer = parse(await this.get(path, ctx, timeLeft, { secondary: true }));
+        this.spacing.delete(name);
+        return answer;
       } catch (err) {
         if (isFinal(err)) throw err;
+        if (err?.code === CODES.ACCESS) {
+          const fails = (spacing?.fails ?? 0) + 1;
+          this.spacing.set(name, { fails, skip: Math.min(2 ** (fails - 1) - 1, maxSkip) });
+        }
         missing.push(name);
         return null;
       }
     };
-    const statistics = await secondary('statistics', PATHS.PORTS_STATISTICS, (a) =>
-      parsePortsStatistics(a, board.portCount),
-    );
+    let statisticsAt = null;
+    const statistics = await secondary('statistics', PATHS.PORTS_STATISTICS, (a) => {
+      // The counters are dated at the answer of their own route, never at
+      // the end of the reading (the routes after it vary in latency).
+      statisticsAt = clock();
+      return parsePortsStatistics(a, board.portCount);
+    });
     const sensor = await secondary('sensor', PATHS.SENSOR, parseSensor);
     const time = await secondary('time', PATHS.TIME, parseTime);
     const firmware = await secondary('firmware', PATHS.FIRMWARE, parseFirmware);
@@ -214,6 +245,7 @@ export class QswClient {
       ...board,
       status,
       statistics,
+      statisticsAt: statistics ? statisticsAt : null,
       temperature: sensor?.temperature ?? null,
       fan1: sensor?.fan1 ?? null,
       fan2: sensor?.fan2 ?? null,

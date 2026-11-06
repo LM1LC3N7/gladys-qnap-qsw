@@ -48,8 +48,20 @@ up to date at the end of every milestone.
     secondary here;
   - whether `system/command reboot` answers before rebooting;
   - the PoE routes of the PoE models (QSW-M2116P, QSW-M2108PR...), if any are
-    documented.
-- [ ] **Later** (ask on the forum first): PoE per port, the LACP groups, the
+    documented;
+  - whether `Link` and `Speed` come as JSON booleans and texts (fixtures) or
+    as texts (`"true"`): a text link is "unknown" here, never published;
+  - whether a wrong password ever answers 200 with `error_code: 401`: it would
+    be "unexpected answer" and tried again every 1 to 30 min with the wrong
+    password (a lockout of the account is possible): then take it as a
+    refusal of the login route;
+  - whether port 80 redirects to 443: the status says "redirection" without
+    advice (suggest https:// then);
+  - which routes a non-administrator account may read (a refused secondary
+    route is spaced, review r1 I1).
+- [ ] **Later** (ask on the forum first): an option "ports exposed" (a
+      28-port switch is 121 features, 265 at the 64-port cap; within the state
+      budget, review r1 M3), PoE per port, the LACP groups, the
       error counters, the firmware update check (`firmware/update/check`,
       which makes the switch call QNAP), discovery.
 
@@ -94,12 +106,17 @@ up to date at the end of every milestone.
   password saved once (lesson of lot 20 wave 2: a new password is always
   tried, whatever its marker); the test button tries once.
 - **Secondary routes**: statistics, sensor, uptime, firmware: any failure
-  (5xx, 401 after a fresh login, timeout, unreadable answer) leaves their
-  values unpublished this time, said in the status, never a pause nor a
-  failed reading; a certificate or login refusal met there is final as
-  anywhere.
+  (5xx, 401/403, timeout, unreadable answer) leaves their values unpublished
+  this time, said in the status, never a pause nor a failed reading; a
+  certificate or login refusal met there is final as anywhere. A 401/403
+  there (the needed routes accepted the token in the same reading) opens no
+  session and keeps the token; that route is asked again 1, 2, 4... readings
+  later, at most an hour apart, an answer resetting it (review r1 I1: before,
+  each refused route opened a session, up to 4 logins per reading).
 - **Rates**: kbit/s from the byte counters of two readings at least 1 s
-  apart on the monotonic clock; a counter going back (reboot, reset) gives no
+  apart on the monotonic clock, each dated at the answer of its statistics
+  route (review r1 I2: dated at the end of the reading, the latency of the
+  routes after it gave ±20 %); a counter going back (reboot, reset) gives no
   rate; above 100 Gbit/s, none. The total is the sum of the ports, none when
   one port is unknown.
 - **Ports**: keys 1..`PortNum` (bounded to 64); the LACP groups after them

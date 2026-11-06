@@ -84,6 +84,8 @@ export const INTERVALS = Object.freeze({
   CONFIG_RETRY_MAX_MS: 10 * 60_000,
   /** /data unreadable or slow: read again this often, one read at a time. */
   STORE_RETRY_MS: 10_000,
+  /** A secondary route refusing the session is asked again at most this far apart. */
+  SECONDARY_MAX_MS: 3600_000,
   /** Unchanged values are sent again this often (the core shows them as fresh). */
   HEARTBEAT_MS: 30 * 60_000,
   /** A stop waits this long at most for the reading in flight. */
