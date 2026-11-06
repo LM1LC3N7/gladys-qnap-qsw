@@ -1,67 +1,133 @@
-# Template de démonstration
+# QNAP QSW
 
-Ceci est la documentation utilisateur de l'intégration. Gladys ré-héberge ce
-fichier et affiche un lien **Documentation** permanent vers lui dans l'écran
-de configuration (dans la langue de l'utilisateur, avec l'anglais en repli) —
-c'est au moment de configurer que l'utilisateur en a le plus besoin. Gardez
-les courtes indications d'accueil dans les blocs `section` du `config_schema`
-du manifest ; mettez ici le pas-à-pas détaillé (captures d'écran, dépannage…).
+Les commutateurs administrables QNAP **QSW** (QSW-M408, QSW-M2116 et les
+autres modèles QSW-M sous **QSS**) dans Gladys, par l'API de l'interface web
+locale du commutateur. Pratique pour surveiller le réseau de la maison : un
+port qui tombe, un lien qui retombe à 100 Mbit/s, un commutateur qui chauffe :
 
-## Ce que vous obtenez
+- le commutateur devient un appareil Gladys (onglet Découverte) : **ports
+  connectés**, **température**, vitesse des **ventilateurs 1** et **2** (tr/min,
+  quand le commutateur en a), **débits reçu** et **émis** de tous les ports
+  ensemble, **temps de fonctionnement**, **firmware** ; et pour chaque port :
+  **connecté** (oui / non), **vitesse du lien** (0 quand rien n'est branché),
+  **débits reçu** et **émis** ;
+- un bouton **Redémarrer le commutateur**, inactif tant que vous ne
+  l'autorisez pas.
 
-Six appareils de démonstration apparaissent après l'installation : une
-station météo (vraies données Open-Meteo), un interrupteur, une lampe
-variable, une prise connectée avec mesure de puissance, un détecteur de
-mouvement et une caméra.
+Les débits sont calculés à partir des compteurs d'octets de deux lectures
+successives (aucun à la première lecture, aucun quand les compteurs
+repartent de zéro, après un redémarrage du commutateur). Les agrégats de
+liens (LACP) ne sont pas lus, seulement les ports physiques. Le PoE n'est pas
+lu : la bibliothèque que suit cette intégration ne le lit pas, et ses routes
+ne sont pas devinées. Les commutateurs QSW non administrables n'ont pas
+d'interface et ne peuvent pas être lus.
 
-## Configuration
+Ce n'est pas l'intégration des **NAS** QNAP (QTS, QuTS hero) : celle-ci est
+une autre intégration du store.
 
-1. Ouvrez l'onglet **Configuration** de l'intégration.
-2. Renseignez la **latitude** et la **longitude** que la station météo de
-   démonstration doit observer (Paris par défaut), et choisissez votre unité
-   de température. L'**intervalle de rafraîchissement** règle la fréquence
-   de lecture de la station météo et de la puissance de la prise : toutes
-   les 5 minutes par défaut, toutes les minutes au plus.
-3. Enregistrez : les appareils apparaissent dans l'onglet **Découverte**,
-   prêts à être ajoutés.
+> **Cette intégration n'a jamais été testée avec un vrai commutateur.** Cette
+> première version suit aioqsw, la bibliothèque qu'utilise Home Assistant, et
+> n'a été testée que contre un faux commutateur. Dites sur le forum Gladys ce
+> qui marche et ce qui ne marche pas, avec le modèle et la version de QSS.
 
-Le réglage **Préférer la connexion locale** pilote la prise de
-démonstration : elle affiche en badge le canal réellement utilisé (local ou
-cloud), avec un point orange quand elle fonctionne en mode dégradé (local
-refusé, bascule cloud).
+Intégration non officielle, sans lien avec QNAP.
 
-## Actions
+## Avant de commencer
 
-- **Tester le fournisseur météo** — effectue une requête en direct vers
-  Open-Meteo et affiche la température et l'humidité actuelles sous le
-  bouton.
-- **Identifier un appareil** — choisissez un de vos appareils dans la liste
-  et il se signale (la lampe de démonstration « clignote » dans les logs).
+1. Le commutateur doit être un QSW **administrable** (avec une interface web,
+   QSS).
+2. Gladys a besoin d'un compte d'administration de l'interface web (`admin`
+   par défaut). Son mot de passe est gardé par Gladys dans sa base, jamais
+   réaffiché, et envoyé seulement au commutateur.
+3. Ajoutez une intégration par commutateur.
 
-## Scènes
+## Réglages
 
-L'intégration ajoute ses propres cartes à l'éditeur de scènes (Gladys 5.1
-ou plus récent), dans la catégorie **Intégrations** :
+- **Adresse du commutateur** : son adresse IP ou son nom d'hôte, tel que vous
+  le saisissez pour ouvrir son interface. HTTPS par défaut (port 443, ou
+  `:port`). Si votre commutateur ne sert son interface qu'en HTTP simple,
+  saisissez `http://` devant l'adresse : le mot de passe (en base64, lisible
+  par tous) traverse alors votre réseau lisible par quiconque s'y trouve.
+- **Nom d'utilisateur**, **Mot de passe**.
+- **Empreinte du certificat** (facultatif, HTTPS seulement) : voir plus bas.
+- **Rafraîchissement** : 30 s, 1 min (par défaut), 2 ou 5 min. Le bouton de
+  test, l'enregistrement du formulaire et un redémarrage de Gladys ou du
+  conteneur ne lisent pas plus tôt (l'heure de la dernière tentative est
+  gardée, écrite avant la lecture). Un appui sur **Redémarrer le
+  commutateur** fait sa propre lecture fraîche, hors rafraîchissement.
+- **Autoriser le redémarrage du commutateur** : désactivé par défaut.
 
-- **Mouvement détecté** (déclencheur) — lance la scène quand un détecteur
-  de démonstration voit bouger quelque chose. Choisissez éventuellement le
-  détecteur et ce qui a bougé (personne, animal) ; laissés vides, toute
-  détection correspond. Les actions suivantes peuvent lire ce qui a bougé
-  avec `{{triggerEvent.data.target}}`.
-- **Identifier un appareil** (action) — fait se signaler l'appareil choisi.
-  Elle indique si l'appareil a pu se signaler, pour que les actions
-  suivantes puissent en dépendre.
+## Le certificat HTTPS
 
-## Tableau de bord
+Le commutateur a un certificat auto-signé, qu'aucune autorité ne garantit.
+Gladys le vérifie par son empreinte SHA-256, juste après la négociation TLS
+et **avant** d'envoyer le mot de passe :
 
-Ajoutez le widget **État de la démo** à un tableau de bord : il affiche en
-direct la température de la station météo et la puissance de la prise du
-bureau, la connexion utilisée par la prise (en orange si dégradée) et la
-position observée. Son bouton **Identifier la lampe** fait se signaler la
-lampe de démonstration.
+- champ vide, à la première connexion : Gladys écrit le certificat rencontré
+  dans son stockage, **puis** envoie le mot de passe. Si son stockage ne peut
+  être lu ou écrit, rien n'est appris et rien n'est envoyé (le statut montre
+  l'empreinte rencontrée ; le stockage est relu toutes les 10 s) ;
+- ensuite, un autre certificat arrête tout (rien n'est envoyé) et le statut
+  montre son empreinte. Réenregistrer le formulaire ne change rien. Si vous
+  avez remplacé ou réinitialisé le commutateur, saisissez dans **Empreinte du
+  certificat** l'empreinte que votre navigateur montre pour lui (cadenas,
+  certificat, SHA-256) : elle devient celle de confiance.
 
-## Dépannage
+## Le redémarrage
 
-L'intégration journalise tout ce qu'elle fait : consultez les logs de
-l'intégration depuis l'interface Gladys (ou `docker logs` sur l'hôte) avec
-`LOG_LEVEL=debug` pour le détail complet.
+**Redémarrer le commutateur** est un bouton, jamais un interrupteur : un
+« tout éteindre » d'un assistant vocal ou d'une scène ne l'atteint jamais.
+Tout appareil branché sur le commutateur perd le réseau pendant 1 à
+3 minutes. Un appui est refusé, rien n'étant envoyé, dans ces cas :
+
+- **Autoriser le redémarrage du commutateur** est désactivé (revérifié juste
+  avant l'écriture de la requête) ;
+- la configuration est incomplète, la connexion ou le certificat a été
+  refusé, un autre commutateur répond à l'adresse, ou Gladys est dans une
+  pause demandée par le commutateur (HTTP 429 ou 5xx) ;
+- un redémarrage a été envoyé il y a moins de 10 minutes (gardé entre les
+  redémarrages), ou ce délai ne peut pas être écrit dans le stockage de
+  l'intégration (/data), ou ce stockage est illisible ;
+- un redémarrage est déjà en cours d'envoi, ou une lecture en cours ne
+  finit pas dans les 2,5 s suivant l'appui ;
+- le commutateur ne répond pas en 2,5 s à la lecture faite juste avant, ou un
+  autre commutateur répond (autre MAC), ou sa MAC est illisible ou n'a jamais
+  été lue avant à cette adresse ;
+- la requête n'a pas pu être écrite dans les 3,5 s suivant l'appui.
+
+Un appui n'attend pas le retour des lectures après une panne : sa propre
+lecture fraîche décide. Quand la requête est partie sans réponse du
+commutateur, Gladys dit « envoyé, sans réponse » : le commutateur redémarre
+peut-être. Pendant 5 minutes, une lecture qui échoue dit qu'il redémarre.
+
+## Pannes
+
+- **Identifiants refusés** (par la page de connexion du commutateur
+  seulement) : plus rien n'est envoyé tant que le nom d'utilisateur ou le mot
+  de passe n'est pas réenregistré dans le formulaire (le mot de passe
+  enregistré est alors essayé une fois, même identique) ; le bouton
+  **Tester la connexion** essaie une fois de plus. Gladys garde une marque de
+  8 bits du mot de passe refusé (partagée par 1 mot de passe sur 256, jamais
+  le mot de passe) pour qu'un redémarrage ne le réessaie pas.
+- **HTTP 429 ou 5xx** sur la carte ou l'état des ports : une pause de toute
+  requête (1 min à 6 h), gardée entre les redémarrages. Les autres routes
+  (débits, capteurs, temps de fonctionnement, firmware) ne mettent jamais en
+  pause ni n'arrêtent la lecture (hors certificat ou connexion refusés, qui
+  arrêtent tout où qu'ils soient rencontrés) : ce qu'elles n'ont pas donné
+  cette fois est dit dans le statut.
+- **Pas de réponse** : nouvel essai après 1 minute ou l'intervalle de
+  rafraîchissement s'il est plus long, puis deux fois plus long à chaque fois,
+  jusqu'à 30 minutes.
+- **Autre commutateur** à l'adresse (autre MAC) : rien n'est publié ni
+  envoyé ; enregistrez le formulaire pour le prendre comme le nouveau.
+
+Ni le mot de passe, ni le jeton de session, ni l'adresse MAC ou le numéro de
+série ne sont journalisés ou publiés. Le stockage garde l'empreinte du
+certificat, la marque de 8 bits ci-dessus et une empreinte salée de la MAC du
+commutateur (pas la MAC en clair).
+
+## Pas encore fait
+
+Le PoE (puissance par port), les agrégats de liens, les compteurs d'erreurs,
+la recherche de mise à jour du firmware : dites-le sur le forum si vous en
+avez besoin.

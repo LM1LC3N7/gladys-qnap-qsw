@@ -1,177 +1,129 @@
 {
   "manifest_version": 1,
   "type": "device",
-  "name": "Demo Devices Template",
+  "name": "QNAP QSW",
   "description": {
-    "en": "Starter template showing sensors, a switch, a dimmable light and a smart plug.",
-    "fr": "Template de démarrage : capteurs, interrupteur, lampe variable et prise connectée."
+    "en": "QNAP QSW switches: ports, link speed, rates, temperature, fans, firmware, reboot.",
+    "fr": "Commutateurs QNAP QSW : ports, vitesse, débits, température, ventilateurs, firmware."
   },
-  "version": "1.0.0",
-  "docker_image": "ghcr.io/gladysassistant/integration-template-js:1.0.0",
+  "version": "0.1.0",
+  "docker_image": "ghcr.io/lm1lc3n7/gladys-qnap-qsw:0.1.0",
   "gladys_version": ">=5.1.0",
-  "cover_image": "https://raw.githubusercontent.com/GladysAssistant/integration-template-js/master/cover.png",
-  "categories": ["lighting", "security", "environment"],
-  "transports": ["local", "cloud"],
+  "cover_image": "https://raw.githubusercontent.com/LM1LC3N7/gladys-qnap-qsw/main/cover.png",
+  "categories": ["network"],
+  "transports": ["local"],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Getting started", "fr": "Pour commencer" },
+      "label": { "en": "How it works", "fr": "Fonctionnement" },
       "description": {
-        "en": "The demo weather station reads real data from the free Open-Meteo API: pick the coordinates to observe. No account, no API key.",
-        "fr": "La station météo de démonstration lit de vraies données via l'API gratuite Open-Meteo : choisissez les coordonnées à observer. Pas de compte, pas de clé d'API."
+        "en": "Gladys reads one QNAP QSW managed switch (QSW-M408, QSW-M2116 and the other QSW-M models running QSS) through the API of its local web interface, with an administration account. The switch becomes a device: ports connected, temperature, fan speeds, total receive and transmit rates, uptime, firmware, and for each port: connected, link speed, receive and transmit rates; plus a Reboot button, off unless you allow it below. PoE is not read (not in the reference library, not guessed). Unmanaged QSW switches have no interface and cannot be read. Add one integration per switch. This is not the QNAP NAS integration. Unofficial integration, not affiliated with QNAP.",
+        "fr": "Gladys lit un commutateur administrable QNAP QSW (QSW-M408, QSW-M2116 et les autres modèles QSW-M sous QSS) par l'API de son interface web locale, avec un compte d'administration. Le commutateur devient un appareil : ports connectés, température, vitesse des ventilateurs, débits totaux reçu et émis, temps de fonctionnement, firmware, et pour chaque port : connecté, vitesse du lien, débits reçu et émis ; plus un bouton Redémarrer, inactif tant que vous ne l'autorisez pas plus bas. Le PoE n'est pas lu (absent de la bibliothèque de référence, pas deviné). Les commutateurs QSW non administrables n'ont pas d'interface et ne peuvent pas être lus. Ajoutez une intégration par commutateur. Ce n'est pas l'intégration des NAS QNAP. Intégration non officielle, sans lien avec QNAP."
       },
       "links": [
         {
-          "url": "https://open-meteo.com/en/docs",
-          "label": { "en": "Open-Meteo documentation", "fr": "Documentation Open-Meteo" }
+          "url": "https://github.com/LM1LC3N7/gladys-qnap-qsw",
+          "label": { "en": "Source code", "fr": "Code source" }
         }
       ]
     },
     {
-      "key": "latitude",
-      "type": "number",
-      "label": { "en": "Latitude", "fr": "Latitude" },
+      "key": "host",
+      "type": "string",
+      "label": { "en": "Address of the switch", "fr": "Adresse du commutateur" },
       "description": {
-        "en": "Latitude used for the demo weather sensor.",
-        "fr": "Latitude utilisée par le capteur météo de démonstration."
+        "en": "The IP address (or host name) of the switch on your local network, as you type it to open its web interface. HTTPS by default (certificate checked, see below). If the switch serves its interface in plain HTTP only, start the address with http:// : the password then crosses your network readable by anyone on it.",
+        "fr": "L'adresse IP (ou le nom d'hôte) du commutateur sur votre réseau local, telle que vous la saisissez pour ouvrir son interface web. HTTPS par défaut (certificat vérifié, voir plus bas). Si le commutateur ne sert son interface qu'en HTTP simple, commencez l'adresse par http:// : le mot de passe traverse alors votre réseau lisible par quiconque s'y trouve."
       },
-      "placeholder": { "en": "e.g. 48.8566", "fr": "ex. 48.8566" },
-      "required": true,
-      "default": 48.8566,
-      "min": -90,
-      "max": 90
+      "placeholder": { "en": "e.g. 192.168.1.30", "fr": "ex. 192.168.1.30" },
+      "required": true
     },
     {
-      "key": "longitude",
-      "type": "number",
-      "label": { "en": "Longitude", "fr": "Longitude" },
+      "key": "username",
+      "type": "string",
+      "label": { "en": "User name", "fr": "Nom d'utilisateur" },
       "description": {
-        "en": "Longitude used for the demo weather sensor.",
-        "fr": "Longitude utilisée par le capteur météo de démonstration."
+        "en": "An administration account of the web interface of the switch (admin by default on QSS).",
+        "fr": "Un compte d'administration de l'interface web du commutateur (admin par défaut sous QSS)."
       },
-      "placeholder": { "en": "e.g. 2.3522", "fr": "ex. 2.3522" },
       "required": true,
-      "default": 2.3522,
-      "min": -180,
-      "max": 180
+      "default": "admin"
     },
     {
-      "key": "unit",
+      "key": "password",
+      "type": "secret",
+      "label": { "en": "Password", "fr": "Mot de passe" },
+      "description": {
+        "en": "The password of this account. Kept by Gladys in its database, never shown again, sent only to the switch (in HTTPS, on a connection whose certificate was checked first).",
+        "fr": "Le mot de passe de ce compte. Gardé par Gladys dans sa base, jamais réaffiché, envoyé seulement au commutateur (en HTTPS, sur une connexion dont le certificat a été vérifié avant)."
+      },
+      "required": true
+    },
+    {
+      "key": "certificate_fingerprint",
+      "type": "string",
+      "label": {
+        "en": "Certificate fingerprint (optional, HTTPS)",
+        "fr": "Empreinte du certificat (facultatif, HTTPS)"
+      },
+      "description": {
+        "en": "The switch has a self-signed HTTPS certificate. Empty: Gladys pins the certificate met at the first connection (written to its storage before the password is sent) and then refuses any other one, saying its fingerprint. To trust a new certificate (switch replaced or reset), or to pin it yourself, type its SHA-256 fingerprint here (as your browser shows it). Leave it empty with an http:// address.",
+        "fr": "Le commutateur a un certificat HTTPS auto-signé. Vide : Gladys épingle le certificat rencontré à la première connexion (écrit dans son stockage avant l'envoi du mot de passe) puis refuse tout autre, en donnant son empreinte. Pour faire confiance à un nouveau certificat (commutateur remplacé ou réinitialisé), ou pour l'épingler vous-même, saisissez ici son empreinte SHA-256 (telle que votre navigateur l'affiche). Laissez-le vide avec une adresse http://."
+      },
+      "placeholder": { "en": "e.g. AB:CD:...", "fr": "ex. AB:CD:..." },
+      "required": false
+    },
+    {
+      "key": "poll_interval",
       "type": "select",
-      "label": { "en": "Temperature unit", "fr": "Unité de température" },
-      "required": false,
-      "default": "celsius",
+      "label": { "en": "Refresh", "fr": "Rafraîchissement" },
+      "description": {
+        "en": "How often the switch is read. The test button, a save of the form or a restart do not read sooner; a press on Reboot makes one fresh read of its own.",
+        "fr": "Fréquence de lecture du commutateur. Le bouton de test, l'enregistrement du formulaire ou un redémarrage ne lisent pas plus tôt ; un appui sur Redémarrer fait sa propre lecture fraîche."
+      },
+      "required": true,
+      "default": "60",
       "options": [
-        { "value": "celsius", "label": { "en": "Celsius", "fr": "Celsius" } },
-        { "value": "fahrenheit", "label": { "en": "Fahrenheit", "fr": "Fahrenheit" } }
+        { "value": "30", "label": { "en": "30 seconds", "fr": "30 secondes" } },
+        { "value": "60", "label": { "en": "1 minute", "fr": "1 minute" } },
+        { "value": "120", "label": { "en": "2 minutes", "fr": "2 minutes" } },
+        { "value": "300", "label": { "en": "5 minutes", "fr": "5 minutes" } }
       ]
     },
     {
-      "key": "poll_frequency",
-      "type": "number",
-      "label": { "en": "Refresh interval (s)", "fr": "Intervalle de rafraîchissement (s)" },
+      "key": "options_section",
+      "type": "section",
+      "label": { "en": "Command", "fr": "Commande" },
       "description": {
-        "en": "How often sensors are polled, in seconds (one minute minimum).",
-        "fr": "Fréquence d'interrogation des capteurs, en secondes (une minute minimum)."
+        "en": "Reading only by default. The one command is the reboot, a button (never a switch: a \"turn everything off\" never reaches it), refused unless allowed here, at most one every 10 minutes. Every device plugged into the switch loses its network while it reboots (1 to 3 minutes).",
+        "fr": "Lecture seule par défaut. La seule commande est le redémarrage, un bouton (jamais un interrupteur : un « tout éteindre » ne l'atteint jamais), refusé tant qu'il n'est pas autorisé ici, au plus un toutes les 10 minutes. Tout appareil branché sur le commutateur perd le réseau pendant le redémarrage (1 à 3 minutes)."
+      }
+    },
+    {
+      "key": "allow_reboot",
+      "type": "boolean",
+      "label": {
+        "en": "Allow rebooting the switch",
+        "fr": "Autoriser le redémarrage du commutateur"
+      },
+      "description": {
+        "en": "Off: the Reboot button is refused and nothing is sent.",
+        "fr": "Désactivé : le bouton Redémarrer est refusé et rien n'est envoyé."
       },
       "required": false,
-      "default": 300,
-      "min": 60,
-      "max": 3600
+      "default": false
     }
   ],
   "actions": [
     {
-      "key": "test_weather",
-      "label": { "en": "Test the weather provider", "fr": "Tester le fournisseur météo" },
+      "key": "test_connection",
+      "label": { "en": "Test the connection", "fr": "Tester la connexion" },
+      "description": {
+        "en": "Reads the switch when a reading is due (never sooner than the refresh), then gives the status. Refused credentials are tried once more; a changed certificate stays refused.",
+        "fr": "Lit le commutateur quand une lecture est due (jamais avant le rafraîchissement), puis donne l'état. Des identifiants refusés sont réessayés une fois ; un certificat changé reste refusé."
+      },
       "timeout_seconds": 30
-    },
-    {
-      "key": "identify",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ]
-    }
-  ],
-  "scene_triggers": [
-    {
-      "key": "motion_detected",
-      "label": { "en": "Motion detected", "fr": "Mouvement détecté" },
-      "description": {
-        "en": "A demo motion sensor saw a person or an animal move.",
-        "fr": "Un détecteur de démonstration a vu bouger une personne ou un animal."
-      },
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Sensor", "fr": "Détecteur" }
-        },
-        {
-          "key": "target",
-          "type": "multi_select",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" },
-          "options": [
-            { "value": "person", "label": { "en": "Person", "fr": "Personne" } },
-            { "value": "animal", "label": { "en": "Animal", "fr": "Animal" } }
-          ]
-        }
-      ],
-      "variables": [
-        {
-          "key": "target",
-          "type": "string",
-          "label": { "en": "What moved", "fr": "Ce qui a bougé" }
-        }
-      ]
-    }
-  ],
-  "scene_actions": [
-    {
-      "key": "identify_device",
-      "label": { "en": "Identify a device", "fr": "Identifier un appareil" },
-      "description": {
-        "en": "Make a device signal itself (the demo light blinks).",
-        "fr": "Fait se signaler un appareil (la lampe de démonstration clignote)."
-      },
-      "timeout_seconds": 15,
-      "fields": [
-        {
-          "key": "device",
-          "type": "select",
-          "source": "devices",
-          "label": { "en": "Device", "fr": "Appareil" },
-          "required": true
-        }
-      ],
-      "outputs": [
-        {
-          "key": "signalled",
-          "type": "boolean",
-          "label": { "en": "Device signalled", "fr": "Appareil signalé" }
-        }
-      ]
-    }
-  ],
-  "widgets": [
-    {
-      "key": "demo_status",
-      "label": { "en": "Demo status", "fr": "État de la démo" },
-      "description": {
-        "en": "Live temperature and plug power, plug connection and observed location.",
-        "fr": "Température et puissance en direct, connexion de la prise, position observée."
-      },
-      "icon": "activity",
-      "action_timeout_seconds": 15
     }
   ]
 }

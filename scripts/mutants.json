@@ -1,0 +1,200 @@
+[
+  {
+    "name": "setValue: option check removed",
+    "file": "src/app.js",
+    "from": "    if (!this.config.allowReboot) throw userError(T.errors.rebootDisabled);\n    if (this.inFlight)",
+    "to": "    if (this.inFlight)"
+  },
+  {
+    "name": "checkReboot: option check removed",
+    "file": "src/app.js",
+    "from": "  checkReboot(session, mono) {\n    if (!this.config.allowReboot) throw userError(T.errors.rebootDisabled);",
+    "to": "  checkReboot(session, mono) {"
+  },
+  {
+    "name": "beforeSend: option check removed",
+    "file": "src/app.js",
+    "from": "          if (!this.config.allowReboot) throw userError(T.errors.rebootDisabled);\n          if (session !== this.session || !this.running || this.stopped) {",
+    "to": "          if (session !== this.session || !this.running || this.stopped) {"
+  },
+  {
+    "name": "beforeSend: deadline check removed",
+    "file": "src/app.js",
+    "from": "          if (at > sendBy) throw userError(T.errors.tooSlow);",
+    "to": ""
+  },
+  {
+    "name": "fresh read: another MAC accepted",
+    "file": "src/app.js",
+    "from": "    if (known.tag !== tag) throw userError(T.errors.otherSwitch);",
+    "to": ""
+  },
+  {
+    "name": "fresh read: unreadable MAC taken as another one",
+    "file": "src/app.js",
+    "from": "    if (!tag || this.dataUnreadable || known?.key !== this.key()) {",
+    "to": "    if (this.dataUnreadable || known?.key !== this.key()) {"
+  },
+  {
+    "name": "cooldown not kept: sent anyway",
+    "file": "src/app.js",
+    "from": "    if (!(await this.save())) {\n      this.memory.rebootAt = before.at;",
+    "to": "    if (false) {\n      this.memory.rebootAt = before.at;"
+  },
+  {
+    "name": "cooldown check removed",
+    "file": "src/app.js",
+    "from": "      if (ago < COMMAND.COOLDOWN_MS) throw",
+    "to": "      if (false) throw"
+  },
+  {
+    "name": "reboot while /data unreadable",
+    "file": "src/app.js",
+    "from": "    if (this.dataUnreadable) throw userError(T.errors.identityUnknown);",
+    "to": ""
+  },
+  {
+    "name": "first pin not written before the password",
+    "file": "src/app.js",
+    "from": "    if (!(await this.save())) {\n      delete m.pins[key];",
+    "to": "    if (false) {\n      delete m.pins[key];"
+  },
+  {
+    "name": "pin learned while /data unreadable",
+    "file": "src/app.js",
+    "from": "    if (this.dataUnreadable) {\n      throw new SwitchError(CODES.PIN_UNAVAILABLE",
+    "to": "    if (false) {\n      throw new SwitchError(CODES.PIN_UNAVAILABLE"
+  },
+  {
+    "name": "another certificate accepted",
+    "file": "src/app.js",
+    "from": "      if (fingerprint === pin) return;",
+    "to": "      return;"
+  },
+  {
+    "name": "401 after a fresh login taken as a refusal of the credentials",
+    "file": "src/qsw/client.js",
+    "from": "throw new SwitchError(CODES.ACCESS, `Refused after login",
+    "to": "throw new SwitchError(CODES.CREDENTIALS, `Refused after login"
+  },
+  {
+    "name": "secondary route: a final failure swallowed",
+    "file": "src/qsw/client.js",
+    "from": "        if (isFinal(err)) throw err;",
+    "to": ""
+  },
+  {
+    "name": "secondary route: a failure fails the reading",
+    "file": "src/qsw/client.js",
+    "from": "        missing.push(name);\n        return null;",
+    "to": "        throw err;"
+  },
+  {
+    "name": "/data: a pending read doubled",
+    "file": "src/app.js",
+    "from": "    if (this.loading) {",
+    "to": "    if (false) {"
+  },
+  {
+    "name": "/data: a read not bounded in time",
+    "file": "src/app.js",
+    "from": "      raw = await this.within(run, TIMEOUTS.STORE_MS);",
+    "to": "      raw = await run;"
+  },
+  {
+    "name": "/data: no timer to read it again",
+    "file": "src/app.js",
+    "from": "    }, INTERVALS.STORE_RETRY_MS);",
+    "to": "    }, 1e12);"
+  },
+  {
+    "name": "/data: the refusal decided in memory lost on merge",
+    "file": "src/app.js",
+    "from": "      disk.refused = { ...ram.refused, tag: refusalTag(disk.salt, c.password) };",
+    "to": ""
+  },
+  {
+    "name": "a save of the form does not try the password again",
+    "file": "src/app.js",
+    "from": "      if (this.memory.refused) {\n        this.memory.refused = null;",
+    "to": "      if (false) {\n        this.memory.refused = null;"
+  },
+  {
+    "name": "pace: interval ignored",
+    "file": "src/app.js",
+    "from": "this.lastReadAt === undefined ? mono : this.lastReadAt + this.config.pollMs",
+    "to": "this.lastReadAt === undefined ? mono : this.lastReadAt"
+  },
+  {
+    "name": "pace: last attempt not kept before the request",
+    "file": "src/app.js",
+    "from": "    await this.saveAttempt(this.now());",
+    "to": ""
+  },
+  {
+    "name": "test button: the loop not scheduled after its reading",
+    "file": "src/app.js",
+    "from": "    if (this.running && !this.final) this.schedule();\n    if (!this.online) {",
+    "to": "    if (!this.online) {"
+  },
+  {
+    "name": "pause not kept in /data",
+    "file": "src/app.js",
+    "from": "      m.pause = { key, until: this.now() + delay, status: err.status };",
+    "to": ""
+  },
+  {
+    "name": "another switch at the address accepted",
+    "file": "src/app.js",
+    "from": "m.identity.tag !== tag && !this.acceptIdentity",
+    "to": "false && !this.acceptIdentity"
+  },
+  {
+    "name": "rates: a counter going back gives a negative rate",
+    "file": "src/app.js",
+    "from": "typeof previous !== 'bigint' || current < previous)",
+    "to": "typeof previous !== 'bigint')"
+  },
+  {
+    "name": "http: size cap while reading removed",
+    "file": "src/qsw/http.js",
+    "from": "          if (size > maxBytes) {",
+    "to": "          if (false) {"
+  },
+  {
+    "name": "http: declared size cap removed",
+    "file": "src/qsw/http.js",
+    "from": "        if (Number.isFinite(declared) && declared > maxBytes) {",
+    "to": "        if (false) {"
+  },
+  {
+    "name": "http: answer before the request accepted",
+    "file": "src/qsw/http.js",
+    "from": "        if (early) throw new SwitchError(CODES.BAD_ANSWER, 'Answer before the request');",
+    "to": ""
+  },
+  {
+    "name": "http: certificate not checked",
+    "file": "src/qsw/http.js",
+    "from": "          await checkPeer(fingerprint);",
+    "to": ""
+  },
+  {
+    "name": "store: a FIFO read",
+    "file": "src/store.js",
+    "from": "        if (!info.isFile()) throw fail('State file not a regular file', 'EINVAL');",
+    "to": ""
+  },
+  {
+    "name": "parse: an unreadable MAC kept",
+    "file": "src/qsw/parse.js",
+    "from": "  if (!/^[0-9A-Fa-f]{12}$/.test(hex)) return null;",
+    "to": "  if (!hex) return null;"
+  },
+  {
+    "name": "parse: the LACP groups read as ports",
+    "file": "src/qsw/parse.js",
+    "from": "    if (n === null || n > portCount || out.has(n)) continue;",
+    "to": "    if (n === null || out.has(n)) continue;"
+  }
+]
