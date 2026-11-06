@@ -1,6 +1,6 @@
 {
   "name": "gladys-qnap-qsw",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Gladys Assistant external integration for QNAP QSW switches (QSW-M408, QSW-M2116...) through the local web API of QSS: ports, link speed, rates, temperature, fans, uptime, firmware, reboot. Unofficial, not affiliated with QNAP.",
   "type": "module",
